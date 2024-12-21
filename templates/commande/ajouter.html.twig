@@ -1,0 +1,218 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<!-- Inclure Tailwind depuis un CDN -->
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+<div class="container mx-auto bg-white p-6 rounded-md shadow-md mt-10">
+    <div class="grid grid-cols-3 gap-4 mb-6">
+        <select id="client-select" class="border border-gray-300 px-4 py-3 rounded-md bg-white">
+            <option value="" data-telephone="" data-adresse="">Choisir un client</option>
+            {% for client in clients %}
+                <option value="{{ client.id }}" data-telephone="{{ client.telephone }}" data-adresse="{{ client.adresse }}">
+                    {{ client.nom ~ ' ' ~ client.prenom }}
+                </option>
+            {% endfor %}
+        </select>
+        <input 
+            id="client-telephone" 
+            type="text" 
+            class="border border-gray-300 px-4 py-3 rounded-md bg-gray-100" 
+            placeholder="Téléphone" 
+            value="" 
+            disabled
+        />
+        <input 
+            id="client-adresse" 
+            type="text" 
+            class="border border-gray-300 px-4 py-3 rounded-md bg-gray-100" 
+            placeholder="Adresse" 
+            value="" 
+            disabled
+        />
+    </div>
+
+    <div id="commande-section" class="opacity-50 pointer-events-none">
+        <div class="grid grid-cols-5 gap-4 mb-6 items-center">
+            <select id="article-select" class="border border-gray-300 px-4 py-3 rounded-md bg-white">
+                <option value="" data-prix="" data-quantite="">Choisir un article</option>
+                {% for article in articles %}
+                    <option value="{{ article.id }}" data-prix="{{ article.prix }}" data-quantite="{{ article.quantiteDisponible }}">
+                        {{ article.nom }}
+                    </option>
+                {% endfor %}
+            </select>
+            <input 
+                id="article-prix" 
+                type="number" 
+                class="border border-gray-300 px-4 py-3 rounded-md bg-white text-center" 
+                placeholder="Prix" 
+                value="0" 
+                disabled
+            />
+            <input 
+                id="article-quantite" 
+                type="number" 
+                class="border border-gray-300 px-4 py-3 rounded-md bg-white text-center" 
+                placeholder="Quantité" 
+                value="0"
+            />
+            <button id="ajouter-article" class="bg-white text-green-600 px-4 py-3 rounded-md hover:bg-green transition border border-green-600">
+                Ajouter
+            </button>
+        </div>
+
+        <div class="bg-gray-50 p-4 rounded-md">
+            <table id="article-table" class="table-auto w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-gray-600 font-bold text-sm border-black">
+                        <th class="border-b pb-2 text-left text-black">Article</th>
+                        <th class="border-b pb-2 text-center text-black">Prix</th>
+                        <th class="border-b pb-2 text-center text-black">Quantité</th>
+                        <th class="border-b pb-2 text-center text-black">Montant</th>
+                        <th class="border-b pb-2 text-center text-black">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+            <div class="flex justify-between items-center mt-4">
+                <div class="text-xl font-bold text-black flex items-center bg-blue-200 pt-2 pl-4 pr-4 pb-2 rounded-md ">
+                    <span>Total:</span>
+                    <span id="total-montant" class="ml-2">0.0</span>
+                </div>
+                <button id="valider-commande" class="bg-blue-200 text-black px-6 py-3 rounded-md hover:bg-blue-600 transition">
+                    Valider la Commande
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+    const clientSelect = document.getElementById('client-select');
+    const clientTelephone = document.getElementById('client-telephone');
+    const clientAdresse = document.getElementById('client-adresse');
+    const commandeSection = document.getElementById('commande-section');
+    const articleSelect = document.getElementById('article-select');
+    const articlePrix = document.getElementById('article-prix');
+    const articleQuantite = document.getElementById('article-quantite');
+    const ajouterArticleBtn = document.getElementById('ajouter-article');
+    const articleTable = document.getElementById('article-table').querySelector('tbody');
+    const totalMontantSpan = document.getElementById('total-montant');
+
+    let totalMontant = 0;
+
+    clientSelect.addEventListener('change', () => {
+        const selectedOption = clientSelect.options[clientSelect.selectedIndex];
+        clientTelephone.value = selectedOption.getAttribute('data-telephone') || '';
+        clientAdresse.value = selectedOption.getAttribute('data-adresse') || '';
+
+        if (clientSelect.value) {
+            commandeSection.classList.remove('opacity-50', 'pointer-events-none');
+        } else {
+            commandeSection.classList.add('opacity-50', 'pointer-events-none');
+        }
+    });
+
+    articleSelect.addEventListener('change', () => {
+        const selectedOption = articleSelect.options[articleSelect.selectedIndex];
+        articlePrix.value = selectedOption.getAttribute('data-prix') || 0;
+        articleQuantite.max = selectedOption.getAttribute('data-quantite') || 0;
+    });
+
+    ajouterArticleBtn.addEventListener('click', () => {
+        const selectedOption = articleSelect.options[articleSelect.selectedIndex];
+        const articleNom = selectedOption.text;
+        const prix = parseFloat(articlePrix.value);
+        const quantite = parseInt(articleQuantite.value);
+
+        if (!articleNom || quantite <= 0 || isNaN(prix)) {
+            alert('Veuillez sélectionner un article et entrer une quantité valide.');
+            return;
+        }
+
+        const montant = prix * quantite;
+        totalMontant += montant;
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="py-2 text-left" data-id="${selectedOption.value}">${articleNom}</td>
+            <td class="py-2 text-center">${prix.toFixed(2)}</td>
+            <td class="py-2 text-center">
+                <input type="number" class="text-center border w-20" value="${quantite}" min="1" />
+            </td>
+            <td class="py-2 text-center">${montant.toFixed(2)}</td>
+            <td class="py-2 text-center">
+                <button class="bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600 transition supprimer-article">
+                    Supprimer
+                </button>
+            </td>
+        `;
+
+        articleTable.appendChild(row);
+
+        totalMontantSpan.textContent = totalMontant.toFixed(2);
+
+        articleSelect.selectedIndex = 0;
+        articlePrix.value = 0;
+        articleQuantite.value = '';
+    });
+
+    articleTable.addEventListener('click', (e) => {
+        if (e.target.classList.contains('supprimer-article')) {
+            const row = e.target.closest('tr');
+            const montant = parseFloat(row.children[3].textContent);
+            totalMontant -= montant;
+            row.remove();
+            totalMontantSpan.textContent = totalMontant.toFixed(2);
+        }
+    });
+
+    document.getElementById('valider-commande').addEventListener('click', () => {
+        if (totalMontant > 0) {
+            const clientId = clientSelect.value;
+            const articles = [];
+
+            articleTable.querySelectorAll('tr').forEach(row => {
+                const articleId = row.querySelector('td[data-id]').getAttribute('data-id');
+                const quantite = row.querySelector('input').value;
+                articles.push({
+                    article_id: articleId,
+                    quantite: quantite
+                });
+            });
+
+
+            const requestData = {
+                client_id: clientId,
+                articles: articles
+            };
+
+            fetch('/commande/valider', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData),
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);  
+                articleTable.innerHTML = '';
+                totalMontant = 0;
+                totalMontantSpan.textContent = totalMontant.toFixed(2);
+            })
+            .catch(error => {
+                alert('Erreur lors de la validation de la commande.');
+            });
+        } else {
+            alert('Aucun article n’a été ajouté.');
+        }
+    });
+});
+
+    
+</script>
+{% endblock %}
